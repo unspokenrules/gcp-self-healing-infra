@@ -130,5 +130,14 @@ gcloud functions logs read restart_vm --region=us-central1
 - Reduce manual on-call burden
 - Showcase DevOps/SRE automation maturity
 
+
+
+### Sample images
+### 🖼️ Uptime Check Configuration
 ![Image](https://github.com/user-attachments/assets/6d2af2ff-b147-4763-ab2d-6e28fea4c55f)
 
+### 🖼️ Alert Policy Triggering Pub/Sub
+![Image](https://github.com/user-attachments/assets/9d91c129-6ce1-4139-9d8d-a7a11f964b8b)
+
+### 🖼️ Cloud Function Logs
+![Image](https://github.com/user-attachments/assets/63c32e02-ec89-418a-974c-e772cdabe6fc)
