@@ -1,34 +1,132 @@
-# GCP Self-Healing VM (Uptime Check + Auto-Restart)
+# 🛠️ GCP Self-Healing Infrastructure (VM Auto-Restart)
 
-This project demonstrates a self-healing infrastructure pattern in Google Cloud Platform. When a VM becomes unreachable via an Uptime Check, a Cloud Monitoring alert is triggered, which sends a Pub/Sub message. A Cloud Function listens to that message and automatically restarts the affected VM.
+This project showcases a **self-healing infrastructure pattern** in Google Cloud. It automatically detects when a VM is unreachable (via uptime check) and **auto-restores it** using a serverless function triggered by alerts.
 
-## 🔧 Components Used
-- Cloud Monitoring (Uptime Check + Alert Policy)
-- Pub/Sub
-- Cloud Functions (Python)
-- Compute Engine
+Built with:
+- 🧠 Cloud Monitoring (Uptime Checks + Alert Policies)
+- 📬 Pub/Sub
+- ⚙️ Cloud Functions (Python)
+- 💻 Compute Engine VM
 
-## 🚀 How It Works
-1. Uptime check monitors VM on port 80
-2. If the check fails, Monitoring fires an alert
-3. Alert sends message to Pub/Sub topic
-4. Cloud Function triggers on Pub/Sub and restarts the VM using GCP API
+---
 
-## 📂 Project Structure
+## ✅ What It Does
+
+If a GCE VM goes down or stops responding to HTTP requests:
+1. Cloud Monitoring's Uptime Check detects the failure.
+2. An alert policy sends a message to a Pub/Sub topic.
+3. A Cloud Function is triggered by that message.
+4. The Function uses the GCP API to **restart the failed VM**.
+
+---
+
+## 📁 Project Structure
+
 ```
-gcp-self-healing-vm/
-├── main.py               # Cloud Function logic
-├── requirements.txt      # Python dependencies
-├── alert-policy.json     # JSON config for alert policy
-└── README.md             # Project documentation
+gcp-self-healing-infra/
+├── main.py               # Cloud Function to restart VM
+├── requirements.txt      # Python dependency
+├── alert-policy.json     # Alert policy config (optional CLI method)
+└── README.md             # This file
 ```
 
-## 🧪 Testing It
-1. Deploy a VM and run Apache on it
-2. Set up Uptime Check + Alert Policy
-3. Deploy the Cloud Function
-4. Stop Apache to simulate failure
-5. Monitor alert trigger and VM restart in logs
+---
 
-## ✅ Result
-The VM is automatically restarted without human intervention.
+## 🚀 How to Set It Up
+
+### 1️⃣ Deploy a Test VM
+```bash
+gcloud compute instances create test-vm \
+  --zone=us-central1-a \
+  --machine-type=e2-micro \
+  --image-family=debian-11 \
+  --image-project=debian-cloud \
+  --tags=http-server
+```
+
+### 2️⃣ Install Apache on the VM
+```bash
+gcloud compute ssh test-vm --zone=us-central1-a
+sudo apt update && sudo apt install apache2 -y
+sudo systemctl start apache2
+```
+
+### 3️⃣ Open Port 80 via Firewall
+```bash
+gcloud compute firewall-rules create allow-http \
+  --allow tcp:80 \
+  --target-tags=http-server \
+  --direction INGRESS \
+  --priority 1000 \
+  --network default
+```
+
+---
+
+### 4️⃣ Create a Pub/Sub Topic
+```bash
+gcloud pubsub topics create vm-alert-topic
+```
+
+### 5️⃣ Register Pub/Sub as a Notification Channel  
+🔧 Do this in **Cloud Console**:  
+- Go to Monitoring → Alerting → Notification Channels  
+- Scroll to **Pub/Sub**, click **Add**, and select `vm-alert-topic`
+
+---
+
+### 6️⃣ Deploy the Cloud Function
+```bash
+gcloud functions deploy restart_vm \
+  --runtime=python311 \
+  --trigger-topic=vm-alert-topic \
+  --entry-point=restart_vm \
+  --region=us-central1 \
+  --timeout=60s \
+  --memory=256MB
+```
+
+---
+
+### 7️⃣ Set Up an Uptime Check
+In GCP Console → Monitoring → Uptime Checks:
+- Type: `Instance`
+- Protocol: `HTTP`
+- Port: `80`
+- Resource: Select your `test-vm`
+
+---
+
+### 8️⃣ Create Alert Policy
+In GCP Console → Monitoring → Alerting:
+- Condition: Uptime check failed
+- For: 1 minute
+- Notification: Select the Pub/Sub topic
+
+---
+
+## 🔁 Test the Self-Healing Flow
+
+To simulate a failure:
+```bash
+gcloud compute ssh test-vm --zone=us-central1-a
+sudo systemctl stop apache2
+```
+
+✅ Within 1–2 minutes:
+- Uptime check fails → alert fires
+- Pub/Sub sends message
+- Cloud Function triggers and restarts the VM
+
+Check logs:
+```bash
+gcloud functions logs read restart_vm --region=us-central1
+```
+
+---
+
+## 📌 Use Cases
+- Auto-recovery for production workloads
+- Reduce manual on-call burden
+- Showcase DevOps/SRE automation maturity
+
